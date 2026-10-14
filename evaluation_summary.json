@@ -1,0 +1,16 @@
+{
+  "files_found": 47,
+  "files_processed": 47,
+  "processing_failures": 0,
+  "local_parser_nonempty": {
+    "name": 47,
+    "position_nondefault": 42,
+    "email": 47,
+    "skills": 36,
+    "education": 35,
+    "work_experience": 28,
+    "projects": 17,
+    "certifications": 9
+  },
+  "warning": "Coverage counts are not extraction accuracy. Provide independently annotated expected fields to calculate precision, recall, and completeness."
+}

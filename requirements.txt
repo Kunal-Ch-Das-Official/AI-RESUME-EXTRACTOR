@@ -1,0 +1,15 @@
+fastapi>=0.118,<1
+uvicorn[standard]>=0.37,<1
+python-multipart>=0.0.20,<1
+pymongo>=4.15,<5
+pydantic>=2.11,<3
+pydantic-settings>=2.10,<3
+pymupdf>=1.26,<2
+python-docx>=1.2,<2
+Pillow>=11,<13
+pytesseract>=0.3.13,<1
+google-genai>=1.40,<2
+python-dotenv>=1.1,<2
+pytest>=8.4,<9
+httpx>=0.28,<1
+ruff>=0.14,<1
