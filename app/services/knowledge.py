@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.db import get_knowledge_collection
-from app.services.embeddings import EmbeddingService
+from app.services.embeddings import get_embedding_service
 
 
 async def upsert_knowledge(
@@ -15,7 +15,7 @@ async def upsert_knowledge(
     metadata: dict | None = None,
 ) -> str:
     collection = get_knowledge_collection()
-    embedding = EmbeddingService().embed(text)
+    embedding = await get_embedding_service().embed(text)
 
     document = {
         "text": text,

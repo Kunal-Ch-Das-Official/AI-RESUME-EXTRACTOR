@@ -8,26 +8,24 @@ from app.models.resume import ResumeInfo
 def calculate_confidence(
     *,
     resume: ResumeInfo,
-    knowledge: list[dict],
+    knowledge: list[dict] | None,
     warnings: list[str],
     source_text: str,
 ) -> dict[str, Any]:
-    """
-    Conservative heuristic. This is intentionally explainable.
+    """Conservative, explainable heuristic.
 
-    Later, after the user supplies labeled resumes, these weights should be
-    calibrated from measured extraction accuracy.
+    ``knowledge=None`` means RAG was not used for this import, which is the
+    normal case, so it is not penalised (it used to cost 0.12 on every import).
     """
     data = resume.model_dump(mode="json")
-
     score = 0.90
-    reasons = []
+    reasons: list[str] = []
 
     if not source_text.strip():
         score -= 0.40
         reasons.append("No source text.")
 
-    if not knowledge:
+    if knowledge is not None and not knowledge:
         score -= 0.12
         reasons.append("No RAG knowledge was retrieved.")
 
@@ -35,20 +33,12 @@ def calculate_confidence(
         score -= min(0.20, 0.04 * len(warnings))
         reasons.append(f"{len(warnings)} deterministic validation warning(s).")
 
-    name = data.get("basicInfo", {}).get("fullName", "").strip()
-    email = data.get("contactInfo", {}).get("primaryEmail", "").strip()
-
-    if not name:
+    if (data.get("basicInfo", {}).get("fullName") or "").strip().lower() in {"", "unknown"}:
         score -= 0.10
         reasons.append("Name is empty.")
 
-    if not email:
+    if not (data.get("contactInfo", {}).get("primaryEmail") or "").strip():
         score -= 0.10
         reasons.append("Primary email is empty.")
 
-    score = max(0.0, min(1.0, score))
-
-    return {
-        "score": round(score, 4),
-        "reasons": reasons,
-    }
+    return {"score": round(max(0.0, min(1.0, score)), 4), "reasons": reasons}

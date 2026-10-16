@@ -5,14 +5,14 @@ import re
 
 from app.config import get_settings
 from app.db import get_knowledge_collection
-from app.services.embeddings import EmbeddingService
+from app.services.embeddings import get_embedding_service
 
 logger = logging.getLogger(__name__)
 
 
 class KnowledgeRetriever:
     def __init__(self) -> None:
-        self.embeddings = EmbeddingService()
+        self.embeddings = get_embedding_service()
 
     async def search(self, query: str, limit: int = 8) -> list[dict]:
         """Search the knowledge collection with vector search, then lexical fallback."""
@@ -26,7 +26,7 @@ class KnowledgeRetriever:
         # must not make resume import fail. PyMongo AsyncCollection.aggregate()
         # is awaited before iterating the returned async cursor.
         try:
-            vector = self.embeddings.embed(query)
+            vector = await self.embeddings.embed(query)
             pipeline = [
                 {
                     "$vectorSearch": {

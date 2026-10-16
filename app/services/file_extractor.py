@@ -42,7 +42,7 @@ def _extract_pdf(data: bytes) -> dict:
     with pymupdf.open(stream=data, filetype="pdf") as document:
         for page_number, page in enumerate(document, start=1):
             page_blocks = []
-            for index, block in enumerate(page.get_text("blocks")):
+            for index, block in enumerate(page.get_text("blocks", sort=True)):
                 text = str(block[4]).strip()
                 if not text:
                     continue
@@ -81,12 +81,16 @@ def _extract_pdf(data: bytes) -> dict:
             links = []
             for link in page.get_links():
                 uri = link.get("uri")
-                if uri:
+                if uri and uri.lower().startswith(("http://", "https://")):
                     links.append(uri)
 
             if links:
+                # The URLs themselves must be part of the text; previously only a
+                # "[Embedded links]" marker was added, so hyperlinked LinkedIn /
+                # GitHub / project URLs never reached the extractors.
                 page_blocks.append("[Embedded links]")
                 for link_index, uri in enumerate(dict.fromkeys(links), start=1):
+                    page_blocks.append(uri)
                     blocks.append(
                         {
                             "id": f"p{page_number}link{link_index}",
@@ -101,7 +105,6 @@ def _extract_pdf(data: bytes) -> dict:
                 pages.append(f"[PAGE {page_number}]\n{page_text}")
 
         text = "\n\n".join(pages).strip()
-
 
     if not text:
         raise ValueError("The document contains no readable text.")
@@ -141,21 +144,19 @@ def _extract_docx(data: bytes) -> dict:
                     }
                 )
 
+    seen_links: set[str] = set()
+    for rel in document.part.rels.values():
+        target = getattr(rel, "target_ref", "") if getattr(rel, "is_external", False) else ""
+        if (
+            rel.reltype.endswith("/hyperlink")
+            and target.lower().startswith(("http://", "https://"))
+            and target not in seen_links
+        ):
+            seen_links.add(target)
+            blocks.append({"id": f"l{len(seen_links)}", "page": 1, "text": target, "type": "link"})
+
     text = "\n".join(block["text"] for block in blocks).strip()
     if not text:
         raise ValueError("The DOCX file contains no extractable text.")
 
     return {"text": text, "blocks": blocks}
-
-
-def _extract_image(data: bytes) -> str:
-    try:
-        image = Image.open(io.BytesIO(data))
-        text = pytesseract.image_to_string(image).strip()
-    except pytesseract.TesseractNotFoundError as exc:
-        raise RuntimeError("Tesseract OCR is not installed.") from exc
-
-    if not text:
-        raise ValueError("OCR could not extract text from the image.")
-
-    return text

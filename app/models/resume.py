@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import Any
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

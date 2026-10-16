@@ -7,7 +7,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from bson import ObjectId
-from bson.errors import InvalidId
 
 from app.config import get_settings
 from app.db import get_collection

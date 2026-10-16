@@ -4,12 +4,12 @@ from __future__ import annotations
 from uuid import uuid4
 
 from app.db import get_knowledge_collection
-from app.services.embeddings import EmbeddingService
+from app.services.embeddings import get_embedding_service
 
 
 class KnowledgeIngestor:
     def __init__(self) -> None:
-        self.embeddings = EmbeddingService()
+        self.embeddings = get_embedding_service()
 
     async def ingest(
         self,
@@ -37,14 +37,14 @@ class KnowledgeIngestor:
 
         collection = get_knowledge_collection()
 
-        documents = []
+        prepared: list[dict] = []
 
         for index, chunk in enumerate(knowledge_chunks):
             if isinstance(chunk, dict):
                 chunk_text = str(chunk.get("text", "")).strip()
                 kind = chunk.get("kind", "resume_example")
-                field = chunk.get("field", "general")
-                source_chunk_id = chunk.get("id")
+                field = chunk.get("field") or self._detect_field(chunk_text)
+                source_chunk_id = chunk.get("chunk_id") or chunk.get("id")
             else:
                 chunk_text = str(chunk).strip()
                 kind = "resume_example"
@@ -54,8 +54,6 @@ class KnowledgeIngestor:
             if not chunk_text:
                 continue
 
-            embedding = self.embeddings.embed(chunk_text)
-
             document = {
                 "knowledge_id": str(uuid4()),
                 "source": filename,
@@ -63,13 +61,18 @@ class KnowledgeIngestor:
                 "text": chunk_text,
                 "kind": kind,
                 "field": field,
-                "embedding": embedding,
             }
-
             if source_chunk_id:
                 document["source_chunk_id"] = source_chunk_id
+            prepared.append(document)
 
-            documents.append(document)
+        # One batched embedding request instead of one network call per chunk.
+        vectors = (
+            await self.embeddings.embed_many([d["text"] for d in prepared])
+            if prepared
+            else []
+        )
+        documents = [{**d, "embedding": v} for d, v in zip(prepared, vectors)]
 
         if not documents:
             raise ValueError(

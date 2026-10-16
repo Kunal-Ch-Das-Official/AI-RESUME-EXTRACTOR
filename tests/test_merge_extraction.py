@@ -1,24 +1,36 @@
-from app.services.merge import _merge_extraction_data
+from app.services.merge import merge_extraction
 
 
-def test_merge_keeps_local_records_missing_from_ai():
+def test_ai_records_replace_local_placeholders_but_fill_gaps():
     local = {
-        "basicInfo": {"fullName": "Jane Doe", "position": "Engineer"},
+        "basicInfo": {"fullName": "Unknown", "position": "Imported Resume"},
+        "address": {"city": "Kolkata", "country": ""},
+        "contactInfo": {"primaryEmail": "jane@example.com", "primaryMobile": ""},
+        "workExperience": {"companies": {"Employer not specified": {"jobTitle": "Not specified"}}},
         "educations": {"qualifications": {"BSc": {"institutionName": "College"}}},
-        "skills": {"skills": {"Imported skills": ["Python", "MongoDB"]}},
+        "skills": {"skills": {"Imported skills": ["Python"]}},
+        "rawSections": {"Hobbies": "Chess"},
     }
     ai = {
-        "basicInfo": {"fullName": "Jane Doe", "position": "Senior Engineer"},
-        "educations": {"qualifications": {"MSc": {"institutionName": "University"}}},
-        "skills": {"skills": {"Imported skills": ["Python", "FastAPI"]}},
+        "basicInfo": {"fullName": "Jane Doe", "position": "Engineer"},
+        "address": {"city": "", "country": "India"},
+        "contactInfo": {"primaryEmail": "", "primaryMobile": "+91 98765 43210"},
+        "workExperience": {"companies": {"Acme": {"jobTitle": "Engineer"}}},
+        "educations": {"qualifications": {}},
+        "skills": {"skills": {"Languages": ["Python", "Go"]}},
     }
-    merged = _merge_extraction_data(local, ai)
-    assert merged["basicInfo"]["position"] == "Senior Engineer"
-    assert set(merged["educations"]["qualifications"]) == {"BSc", "MSc"}
-    assert merged["skills"]["skills"]["Imported skills"] == ["Python", "FastAPI", "MongoDB"]
+    merged = merge_extraction(local, ai)
+    assert merged["basicInfo"] == {"fullName": "Jane Doe", "position": "Engineer"}
+    assert merged["address"] == {"city": "Kolkata", "country": "India"}
+    assert merged["contactInfo"] == {
+        "primaryEmail": "jane@example.com", "primaryMobile": "+91 98765 43210"
+    }
+    assert set(merged["workExperience"]["companies"]) == {"Acme"}  # no placeholder job
+    assert set(merged["educations"]["qualifications"]) == {"BSc"}  # AI empty -> keep local
+    assert merged["skills"]["skills"] == {"Languages": ["Python", "Go"]}
+    assert merged["rawSections"] == {"Hobbies": "Chess"}
 
 
-def test_merge_uses_local_value_when_ai_value_is_empty():
-    assert _merge_extraction_data({"summary": "source summary"}, {"summary": ""}) == {
-        "summary": "source summary"
-    }
+def test_empty_ai_result_keeps_local_untouched():
+    local = {"basicInfo": {"fullName": "Jane", "position": "Dev"}, "skills": {"skills": {"a": ["x"]}}}
+    assert merge_extraction(local, {})["skills"] == {"skills": {"a": ["x"]}}

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 
 
 def build_chunks(blocks: list[dict], max_chars: int = 1800) -> list[dict]:

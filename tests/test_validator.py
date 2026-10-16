@@ -1,4 +1,3 @@
-from tests.test_models import test_resume_schema_can_validate_minimum_shape
 from app.models.resume import ResumeInfo
 from app.services.validator import validate_semantics
 
